@@ -1,0 +1,23 @@
+name: MySDK
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: 15.0
+  xcodeVersion: 16.0
+
+targets:
+  MySDK:
+    type: framework
+    platform: iOS
+    sources:
+      - path: Sources/MySDK
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.example.MySDK
+  
+  MySDKTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/MySDKTests
+    dependencies:
+      - target: MySDK

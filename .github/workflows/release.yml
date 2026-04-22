@@ -1,0 +1,74 @@
+name: Build and Release XCFramework
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode Version
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.2'
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build XCFramework
+        run: ./build_xcframework.sh
+
+      - name: Get tag version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Update Package.swift for distribution
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          CHECKSUM=$(cat dist/checksum.txt)
+          REPO_URL="https://github.com/${{ github.repository }}"
+          DOWNLOAD_URL="${REPO_URL}/releases/download/${VERSION}/MySDK.xcframework.zip"
+          
+          # 使用 perl 进行更精确的跨平台正则替换，确保只替换 binaryTarget 块内的内容
+          perl -i -pe "s|url: \".*\"|url: \"${DOWNLOAD_URL}\"|g" Package.swift
+          perl -i -pe "s|checksum: \".*\"|checksum: \"${CHECKSUM}\"|g" Package.swift
+          
+          echo "Updated Package.swift with URL: ${DOWNLOAD_URL} and Checksum: ${CHECKSUM}"
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/MySDK.xcframework.zip
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit, Push and Update Tag
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          
+          git add Package.swift
+          git commit -m "chore: update MySDK binary checksum for ${VERSION}" || echo "No changes to commit"
+          
+          # 1. 推送到 main 分支
+          git push origin HEAD:main
+          
+          # 2. 关键步骤：强制将 Tag 指向当前这个包含新 Package.swift 的提交，并强制推送覆盖远程 Tag
+          git tag -f ${VERSION}
+          git push origin ${VERSION} --force
+
