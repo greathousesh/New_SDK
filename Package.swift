@@ -1,4 +1,6 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.3
+// The swift-tools-version declares the minimum version of Swift required to build this package.
+
 import PackageDescription
 
 let package = Package(
@@ -7,17 +9,25 @@ let package = Package(
         .iOS(.v15)
     ],
     products: [
+        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "MySDK",
             targets: ["MySDK"]
         ),
     ],
     targets: [
-        .binaryTarget(
+        // Targets are the basic building blocks of a package, defining a module or a test suite.
+        // Targets can depend on other targets in this package and products from dependencies.
+        .target(
             name: "MySDK",
-            url: "https://github.com/greathousesh/iOS_SDK/releases/download/v0.0.24/MySDK.xcframework.zip",
-            checksum: "f02384e3326787c49f86303fb2e2d740a1ab8f2be251b51094f14f2c49d5dabc"
-        )
-    ]
+            resources: [
+                .process("Resources")
+            ]
+        ),
+        .testTarget(
+            name: "MySDKTests",
+            dependencies: ["MySDK"]
+        ),
+    ],
+    swiftLanguageModes: [.v6]
 )
- 
